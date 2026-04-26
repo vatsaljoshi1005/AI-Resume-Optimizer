@@ -2,12 +2,49 @@
 import streamlit as st
 #pdfplumber-> exports text from PDF reliably
 import pdfplumber
+import requests
 #Document() lets u read paras and text
 from docx import Document
+from openai import OpenAI
+from dotenv import load_dotenv
+load_dotenv()
+
+def call_local_llm(resume_text,jd_text):
+    prompt=f"""
+You are an expert resume writer.
+
+Optimize the following resume for the job description.
+
+Focus on:
+-ATS-friendly structure
+-Strong keyword alignment
+-Impact-driven bullet points
+
+Resume:
+{resume_text}
+
+Job Description:
+{jd_text}
+"""
+    response=requests.post(
+        "http://localhost:11434/api/generate",
+        json={
+            "model":"llama3",
+            "prompt":prompt,
+            "stream":False
+        }
+    )
+    data=response.json()
+    if "response" in data:
+        return data["response"]
+    else:
+        return str(data)
+    
+
 #page_title->browser tab title
 st.set_page_config(page_title="AI Resume Optimizer",layout="wide")
 
-#creates a min heading(H1) on your app page
+#creates a main heading(H1) on your app page
 st.title("AI Resume Optimizer")
 
 #st.text()->plain text
@@ -54,9 +91,15 @@ if st.button("Optimize Resume"):
             for para in doc.paragraphs:
                 #no need to check for empty text as DOCX always gives string
                 resume_text+=para.text+"\n"
+                #st.text(resume_text[:500])
+        else:
+            st.error("Unsupported file format")
+            st.stop()
 
-        
-    st.text(resume_text[:500])
+        st.write("Calling LLM...")
+        optimized_resume=call_local_llm(resume_text,jd_text)
+        st.subheader("Optimized Resume")
+        st.write(optimized_resume)
 
 
 
